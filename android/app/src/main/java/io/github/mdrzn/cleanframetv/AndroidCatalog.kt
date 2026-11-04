@@ -27,7 +27,7 @@ class AndroidCatalog(private val context: Context) {
     fun entries(): List<CatalogEntry> {
         ensureMonochromeIconCache()
         val apps = Catalog.apps(appCandidates(), context.packageName)
-        apps.forEach { exportIcon(it.appId) }
+        apps.forEach { exportIcon(it.appId, it.name) }
         val inputs = Catalog.inputs(inputCandidates(), inputNames())
         inputIds = inputs.associate { it.entry.appId to it.inputId }
         return apps + inputs.map { it.entry }
@@ -134,7 +134,21 @@ class AndroidCatalog(private val context: Context) {
     }
 
     /** Writes a white, transparent app-icon silhouette to filesDir/icons/<package>.png. */
-    private fun exportIcon(packageName: String) {
+    private fun exportIcon(packageName: String, appName: String) {
+        val custom = customIconDrawable(packageName, appName)
+        if (custom != null) {
+            try {
+                val bitmap = Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
+                custom.setBounds(0, 0, 128, 128)
+                custom.draw(Canvas(bitmap))
+                val file = File(iconDir, "$packageName.png")
+                FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                bitmap.recycle()
+                return
+            } catch (e: Exception) {
+                Log.w(TAG, "Custom icon failed for $packageName; using app icon", e)
+            }
+        }
         val file = File(iconDir, "$packageName.png")
         val updated = try { pm.getPackageInfo(packageName, 0).lastUpdateTime } catch (e: Exception) { 0L }
         if (file.isFile && file.lastModified() >= updated) return
@@ -160,6 +174,20 @@ class AndroidCatalog(private val context: Context) {
         } catch (e: Exception) {
             Log.w(TAG, "No icon for $packageName", e)
         }
+    }
+
+    /** Return a launcher-optimized white mark for apps whose stock icons do not work well here. */
+    private fun customIconDrawable(packageName: String, appName: String): android.graphics.drawable.Drawable? {
+        val label = appName.lowercase().replace(Regex("[^a-z0-9]+"), "")
+        val resource = when {
+            packageName == "org.xbmc.kodi" || label == "kodi" -> R.drawable.icon_kodi
+            packageName == "com.android.vending" || label.contains("playstore") -> R.drawable.icon_playstore
+            label.contains("leankeyboard") -> R.drawable.icon_leankeyboard
+            label.contains("tvquickactions") -> R.drawable.icon_tvquickactions
+            label.contains("dateimanager") || label.contains("filemanagerplus") -> R.drawable.icon_filemanagerplus
+            else -> return null
+        }
+        return context.getDrawable(resource)
     }
 
     /**
@@ -224,7 +252,7 @@ class AndroidCatalog(private val context: Context) {
         private const val NAME_PREFIX = "inputName."
         const val BUTTONS = "buttons"
         private const val ICON_CACHE_VERSION_KEY = "iconCacheVersion"
-        private const val ICON_CACHE_VERSION = 4
+        private const val ICON_CACHE_VERSION = 5
         private const val PROJECTIVY = "com.spocky.projengmenu"
         /** HOME handlers that are not user launchers (setup fallbacks, factory tools). */
         private val NOT_LAUNCHERS = setOf("com.android.tv.settings", "com.android.settings", "com.duokan.factorytest", "com.google.android.tungsten.setupwraith")
