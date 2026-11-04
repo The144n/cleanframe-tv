@@ -450,11 +450,20 @@ try {
     await act('editor.move.netflix'); await nav('down', 'ok');
     const moved = start.slice(), at = moved.indexOf('netflix'); [moved[at], moved[at + 1]] = [moved[at + 1], moved[at]];
     check('Placed move persists immediately', same((await stored()).dock, moved));
-    await act('editor.add.' + EXTRA); check('Nine-app cap prevents addition', (await state()).dock.length === 9 && !(await state()).dock.includes(EXTRA));
+    await act('editor.add.' + EXTRA); check('15-app cap prevents a 16th app', (await state()).dock.length === 9 && !(await state()).dock.includes(EXTRA));
     await remove(HOME[0]); await act('editor.add.' + EXTRA);
     check('Native app can be pinned with stable ID', (await stored()).dock.includes(EXTRA) && (await state()).dock.length === 9);
     check('Native pin retains readable metadata for failed discovery', (await stored()).appRecords.some(a => a.id === EXTRA && a.name === UNSAFE_NAME));
-    await current.reload(); await ready(); check('Native pin survives reload', (await state()).dock.includes(EXTRA));
+    await current.evaluate(() => {
+      for (let i = 1; i <= 6; i++) __tv.catalog.push({ appId: 'com.example.qa' + i, name: 'QA app ' + i, kind: 'app', icon: '' });
+      window.dispatchEvent(new Event('cleanframe:apps-changed'));
+    });
+    for (let i = 1; i <= 6; i++) await act('editor.add.com.example.qa' + i);
+    check('Home accepts 15 apps and persists all six additional pins', (await state()).dock.length === 15 && (await stored()).dock.length === 15 && Array.from({ length: 6 }, (_, i) => 'com.example.qa' + (i + 1)).every(id => (await state()).dock.includes(id)));
+    await current.evaluate(() => { __tv.catalog.push({ appId: 'com.example.qa7', name: 'QA app 7', kind: 'app', icon: '' }); window.dispatchEvent(new Event('cleanframe:apps-changed')); });
+    await act('editor.add.com.example.qa7');
+    check('A 16th app is rejected', (await state()).dock.length === 15 && !(await state()).dock.includes('com.example.qa7'));
+    await current.reload(); await ready(); check('15 pinned apps survive reload', (await state()).dock.length === 15);
     await editor(); const ids = (await state()).dock;
     for (const id of ids.slice(1)) await remove(id);
     await remove(ids[0]); check('Last Home app cannot be removed', same((await state()).dock, [ids[0]]) && same((await stored()).dock, [ids[0]]));
