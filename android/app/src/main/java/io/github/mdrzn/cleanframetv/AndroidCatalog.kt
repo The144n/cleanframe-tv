@@ -159,7 +159,9 @@ class AndroidCatalog(private val context: Context) {
             // Otherwise use the adaptive foreground, or isolate the artwork in a legacy bitmap.
             val drawable = if (adaptive) {
                 val icon = appIcon as AdaptiveIconDrawable
-                icon.monochrome ?: icon.foreground
+                // TiviMate's supplied monochrome layer is empty on some TV builds;
+                // its foreground artwork produces the intended white monochrome mark.
+                if (packageName == "ar.tvplayer.tv") icon.foreground else icon.monochrome ?: icon.foreground
             } else appIcon
             drawable.mutate().setColorFilter(android.graphics.PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN))
             val size = 128
@@ -252,7 +254,7 @@ class AndroidCatalog(private val context: Context) {
         private const val NAME_PREFIX = "inputName."
         const val BUTTONS = "buttons"
         private const val ICON_CACHE_VERSION_KEY = "iconCacheVersion"
-        private const val ICON_CACHE_VERSION = 5
+        private const val ICON_CACHE_VERSION = 6
         private const val PROJECTIVY = "com.spocky.projengmenu"
         /** HOME handlers that are not user launchers (setup fallbacks, factory tools). */
         private val NOT_LAUNCHERS = setOf("com.android.tv.settings", "com.android.settings", "com.duokan.factorytest", "com.google.android.tungsten.setupwraith")
