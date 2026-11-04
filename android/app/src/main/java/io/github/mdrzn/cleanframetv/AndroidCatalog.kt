@@ -140,14 +140,18 @@ class AndroidCatalog(private val context: Context) {
         if (file.isFile && file.lastModified() >= updated) return
         try {
             val appIcon = pm.getApplicationIcon(packageName)
-            // Adaptive icons have a separate foreground layer. Use it alone so the coloured
-            // background is discarded; legacy icons are tinted as a whole as a best-effort fallback.
-            val drawable = if (appIcon is AdaptiveIconDrawable) appIcon.foreground else appIcon
-            drawable.mutate().setColorFilter(android.graphics.PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN))
+            val adaptive = appIcon is AdaptiveIconDrawable
+            // Adaptive icons expose the foreground separately. Older icons are rasterized first;
+            // their edge-connected background is then removed before the remaining artwork is tinted.
+            val drawable = if (adaptive) (appIcon as AdaptiveIconDrawable).foreground else appIcon
+            if (adaptive) {
+                drawable.mutate().setColorFilter(android.graphics.PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN))
+            }
             val size = 128
             val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             drawable.setBounds(0, 0, size, size)
             drawable.draw(Canvas(bitmap))
+            if (!adaptive) removeLegacyIconBackground(bitmap)
             val tmp = File(iconDir, "$packageName.png.tmp")
             FileOutputStream(tmp).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
             bitmap.recycle()
@@ -157,12 +161,90 @@ class AndroidCatalog(private val context: Context) {
         }
     }
 
+    /**
+     * Legacy launcher icons often bake their coloured tile into one opaque bitmap. Remove
+     * background pixels connected to the outer edge (using the corner colours as references),
+     * then turn the isolated foreground artwork white. This keeps the logo instead of producing
+     * a white square.
+     */
+    private fun removeLegacyIconBackground(bitmap: Bitmap) {
+        val width = bitmap.width
+        val height = bitmap.height
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
+        val corners = listOf(
+            pixels[0],
+            pixels[width - 1],
+            pixels[(height - 1) * width],
+            pixels[height * width - 1]
+        ).filter { Color.alpha(it) > 127 }
+        if (corners.isEmpty()) {
+            for (i in pixels.indices) {
+                val alpha = Color.alpha(pixels[i])
+                pixels[i] = Color.argb(alpha, 255, 255, 255)
+            }
+            bitmap.setPixels(pixels, 0, width, 0, 0, width, height)
+            return
+        }
+
+        fun isBackground(color: Int): Boolean {
+            if (Color.alpha(color) < 16) return true
+            val r = Color.red(color)
+            val g = Color.green(color)
+            val b = Color.blue(color)
+            return corners.any { corner ->
+                val dr = r - Color.red(corner)
+                val dg = g - Color.green(corner)
+                val db = b - Color.blue(corner)
+                dr * dr + dg * dg + db * db <= 72 * 72
+            }
+        }
+
+        val background = BooleanArray(pixels.size)
+        val queue = IntArray(pixels.size)
+        var head = 0
+        var tail = 0
+
+        fun addIfBackground(index: Int) {
+            if (!background[index] && isBackground(pixels[index])) {
+                background[index] = true
+                queue[tail++] = index
+            }
+        }
+
+        for (x in 0 until width) {
+            addIfBackground(x)
+            addIfBackground((height - 1) * width + x)
+        }
+        for (y in 0 until height) {
+            addIfBackground(y * width)
+            addIfBackground(y * width + width - 1)
+        }
+
+        while (head < tail) {
+            val index = queue[head++]
+            val x = index % width
+            val y = index / width
+            if (x > 0) addIfBackground(index - 1)
+            if (x + 1 < width) addIfBackground(index + 1)
+            if (y > 0) addIfBackground(index - width)
+            if (y + 1 < height) addIfBackground(index + width)
+        }
+
+        for (i in pixels.indices) {
+            val alpha = if (background[i]) 0 else Color.alpha(pixels[i])
+            pixels[i] = Color.argb(alpha, 255, 255, 255)
+        }
+        bitmap.setPixels(pixels, 0, width, 0, 0, width, height)
+    }
+
     companion object {
         const val TAG = "CleanFrameTV"
         private const val NAME_PREFIX = "inputName."
         const val BUTTONS = "buttons"
         private const val ICON_CACHE_VERSION_KEY = "iconCacheVersion"
-        private const val ICON_CACHE_VERSION = 2
+        private const val ICON_CACHE_VERSION = 3
         private const val PROJECTIVY = "com.spocky.projengmenu"
         /** HOME handlers that are not user launchers (setup fallbacks, factory tools). */
         private val NOT_LAUNCHERS = setOf("com.android.tv.settings", "com.android.settings", "com.duokan.factorytest", "com.google.android.tungsten.setupwraith")
