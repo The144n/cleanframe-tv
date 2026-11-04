@@ -160,7 +160,7 @@ class AndroidCatalog(private val context: Context) {
     companion object {
         const val TAG = "CleanFrameTV"
         private const val NAME_PREFIX = "inputName."
-        private const val BUTTONS = "buttons"
+        const val BUTTONS = "buttons"
         private const val ICON_CACHE_VERSION_KEY = "iconCacheVersion"
         private const val ICON_CACHE_VERSION = 2
         private const val PROJECTIVY = "com.spocky.projengmenu"
