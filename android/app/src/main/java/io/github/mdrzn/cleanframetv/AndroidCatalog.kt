@@ -183,6 +183,7 @@ class AndroidCatalog(private val context: Context) {
         val label = appName.lowercase().replace(Regex("[^a-z0-9]+"), "")
         val resource = when {
             packageName == "org.xbmc.kodi" || label == "kodi" -> R.drawable.icon_kodi
+            packageName == "ar.tvplayer.tv" || label.contains("tivimate") -> R.drawable.icon_tivimate
             packageName == "com.android.vending" || label.contains("playstore") -> R.drawable.icon_playstore
             label.contains("leankeyboard") -> R.drawable.icon_leankeyboard
             label.contains("tvquickactions") -> R.drawable.icon_tvquickactions
@@ -254,7 +255,7 @@ class AndroidCatalog(private val context: Context) {
         private const val NAME_PREFIX = "inputName."
         const val BUTTONS = "buttons"
         private const val ICON_CACHE_VERSION_KEY = "iconCacheVersion"
-        private const val ICON_CACHE_VERSION = 6
+        private const val ICON_CACHE_VERSION = 7
         private const val PROJECTIVY = "com.spocky.projengmenu"
         /** HOME handlers that are not user launchers (setup fallbacks, factory tools). */
         private val NOT_LAUNCHERS = setOf("com.android.tv.settings", "com.android.settings", "com.duokan.factorytest", "com.google.android.tungsten.setupwraith")
