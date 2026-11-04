@@ -7,6 +7,9 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.PorterDuff
+import android.graphics.drawable.AdaptiveIconDrawable
 import android.media.tv.TvContract
 import android.media.tv.TvInputManager
 import android.provider.Settings
@@ -22,11 +25,18 @@ class AndroidCatalog(private val context: Context) {
     @Volatile private var inputIds: Map<String, String> = emptyMap()
 
     fun entries(): List<CatalogEntry> {
+        ensureMonochromeIconCache()
         val apps = Catalog.apps(appCandidates(), context.packageName)
         apps.forEach { exportIcon(it.appId) }
         val inputs = Catalog.inputs(inputCandidates(), inputNames())
         inputIds = inputs.associate { it.entry.appId to it.inputId }
         return apps + inputs.map { it.entry }
+    }
+
+    private fun ensureMonochromeIconCache() {
+        if (prefs.getInt(ICON_CACHE_VERSION_KEY, 0) == ICON_CACHE_VERSION) return
+        iconDir.listFiles()?.forEach { it.delete() }
+        prefs.edit().putInt(ICON_CACHE_VERSION_KEY, ICON_CACHE_VERSION).apply()
     }
 
     private fun appCandidates(): List<AppCandidate> {
@@ -123,13 +133,17 @@ class AndroidCatalog(private val context: Context) {
         Log.w(TAG, "Could not open ${intent.action}", e); "The TV could not open this screen."
     }
 
-    /** Writes the app's icon once to filesDir/icons/<package>.png (served to the web interface as /icons/...). */
+    /** Writes a white, transparent app-icon silhouette to filesDir/icons/<package>.png. */
     private fun exportIcon(packageName: String) {
         val file = File(iconDir, "$packageName.png")
         val updated = try { pm.getPackageInfo(packageName, 0).lastUpdateTime } catch (e: Exception) { 0L }
         if (file.isFile && file.lastModified() >= updated) return
         try {
-            val drawable = pm.getApplicationIcon(packageName)
+            val appIcon = pm.getApplicationIcon(packageName)
+            // Adaptive icons have a separate foreground layer. Use it alone so the coloured
+            // background is discarded; legacy icons are tinted as a whole as a best-effort fallback.
+            val drawable = if (appIcon is AdaptiveIconDrawable) appIcon.foreground else appIcon
+            drawable.mutate().setColorFilter(android.graphics.PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN))
             val size = 128
             val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             drawable.setBounds(0, 0, size, size)
@@ -146,7 +160,9 @@ class AndroidCatalog(private val context: Context) {
     companion object {
         const val TAG = "CleanFrameTV"
         private const val NAME_PREFIX = "inputName."
-        const val BUTTONS = "buttons"
+        private const val BUTTONS = "buttons"
+        private const val ICON_CACHE_VERSION_KEY = "iconCacheVersion"
+        private const val ICON_CACHE_VERSION = 2
         private const val PROJECTIVY = "com.spocky.projengmenu"
         /** HOME handlers that are not user launchers (setup fallbacks, factory tools). */
         private val NOT_LAUNCHERS = setOf("com.android.tv.settings", "com.android.settings", "com.duokan.factorytest", "com.google.android.tungsten.setupwraith")
