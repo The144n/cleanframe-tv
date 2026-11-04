@@ -3,24 +3,24 @@
     android:height="128dp"
     android:viewportWidth="128"
     android:viewportHeight="128">
-
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M64,7 L121,64 L64,121 L7,64 Z" />
-
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="8"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M64,30 L64,98 M30,64 L98,64" />
-
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M64,45 A19,19 0,1 0,64 83 A19,19 0,1 0,64 45 Z" />
-
-    <path
-        android:fillColor="#FF000000"
-        android:pathData="M64,55 A9,9 0,1 1,64 73 A9,9 0,1 1,64 55 Z" />
+    <!-- Transparent diamond outline with the four directional controls. -->
+    <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="9" android:strokeLineJoin="round"
+        android:pathData="M64,8 L120,64 L64,120 L8,64 Z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M64,19 L54,31 H60 V39 H68 V31 H74 Z
+        M109,64 L97,54 V60 H89 V68 H97 V74 Z
+        M64,109 L74,97 H68 V89 H60 V97 H54 Z
+        M19,64 L31,74 V68 H39 V60 H31 V54 Z" />
+    <!-- Compact central tvQA-inspired mark: a TV screen with antennae and controls. -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M43,46 L54,35 L59,40 L52,47 H76 L69,40 L74,35 L85,46 L80,51 H48 Z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M39,53 H89 V79 H39 Z" />
+    <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="5" android:strokeLineCap="round"
+        android:pathData="M51,88 H77" />
+    <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4" android:strokeLineCap="round"
+        android:pathData="M56,97 H72" />
 </vector>
