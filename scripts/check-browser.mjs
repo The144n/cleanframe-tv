@@ -1238,4 +1238,4 @@ finally {
   writeFileSync(out + 'checks.json', JSON.stringify(report, null, 2) + '\n');
 }
 console.log(report.checks.filter(c => c.passed).length + ' checks passed; ' + report.failures.length + ' failure(s). Report: .local/qa/checks.json');
-if (report.failures.length) process.exitCode = 1;
+if (report.failures.length) { console.error('Browser QA failures:', JSON.stringify(report.failures, null, 2)); process.exitCode = 1; }
