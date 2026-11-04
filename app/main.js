@@ -781,7 +781,7 @@
   function nearestHome(t, count) {
     var target = editorOtherY(t.f.j) - t.top + 36, best = 0, distance = Infinity, i, d;
     for (i = 0; i < count; i++) {
-      d = Math.abs(editorHomeY(i) + 36 - target);
+      d = Math.abs(editorHomeY(i) - (t.homeTop || 0) + 36 - target);
       if (d < distance) { best = i; distance = d; }
     }
     return best;
