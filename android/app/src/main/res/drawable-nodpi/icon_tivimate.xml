@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="128dp"
+    android:height="128dp"
+    android:viewportWidth="128"
+    android:viewportHeight="128">
+    <!-- TiviMate's original lowercase "tv" wordmark, rendered as a clean white mark. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M25,25 H43 V43 H25 Z M25,43 H43 V79 C43,86 46,90 54,90 H61 V108 H52 C34,108 25,98 25,80 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M53,43 H73 L88,83 L103,43 H123 L97,108 H79 Z" />
+</vector>
