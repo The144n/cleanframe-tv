@@ -459,7 +459,8 @@ try {
       window.dispatchEvent(new Event('cleanframe:apps-changed'));
     });
     for (let i = 1; i <= 6; i++) await act('editor.add.com.example.qa' + i);
-    check('Home accepts 15 apps and persists all six additional pins', (await state()).dock.length === 15 && (await stored()).dock.length === 15 && Array.from({ length: 6 }, (_, i) => 'com.example.qa' + (i + 1)).every(id => (await state()).dock.includes(id)));
+    const fullDock = await state(), fullStored = await stored();
+    check('Home accepts 15 apps and persists all six additional pins', fullDock.dock.length === 15 && fullStored.dock.length === 15 && Array.from({ length: 6 }, (_, i) => 'com.example.qa' + (i + 1)).every(id => fullDock.dock.includes(id)));
     await current.evaluate(() => { __tv.catalog.push({ appId: 'com.example.qa7', name: 'QA app 7', kind: 'app', icon: '' }); window.dispatchEvent(new Event('cleanframe:apps-changed')); });
     await act('editor.add.com.example.qa7');
     check('A 16th app is rejected', (await state()).dock.length === 15 && !(await state()).dock.includes('com.example.qa7'));
