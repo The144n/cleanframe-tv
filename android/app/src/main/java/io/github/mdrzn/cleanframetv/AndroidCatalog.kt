@@ -184,7 +184,7 @@ class AndroidCatalog(private val context: Context) {
             packageName == "com.android.vending" || label.contains("playstore") -> R.drawable.icon_playstore
             label.contains("leankeyboard") -> R.drawable.icon_leankeyboard
             label.contains("tvquickactions") -> R.drawable.icon_tvquickactions
-            label.contains("dateimanager") || label.contains("filemanagerplus") -> R.drawable.icon_filemanagerplus
+            packageName == "com.alphainventor.filemanager" || label.contains("dateimanager") || label.contains("filemanager") -> R.drawable.icon_filemanagerplus
             else -> return null
         }
         return context.getDrawable(resource)
