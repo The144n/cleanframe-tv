@@ -141,12 +141,13 @@ class AndroidCatalog(private val context: Context) {
         try {
             val appIcon = pm.getApplicationIcon(packageName)
             val adaptive = appIcon is AdaptiveIconDrawable
-            // Adaptive icons expose the foreground separately. Older icons are rasterized first;
-            // their edge-connected background is then removed before the remaining artwork is tinted.
-            val drawable = if (adaptive) (appIcon as AdaptiveIconDrawable).foreground else appIcon
-            if (adaptive) {
-                drawable.mutate().setColorFilter(android.graphics.PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN))
-            }
+            // Prefer Android's dedicated monochrome artwork when the app provides it.
+            // Otherwise use the adaptive foreground, or isolate the artwork in a legacy bitmap.
+            val drawable = if (adaptive) {
+                val icon = appIcon as AdaptiveIconDrawable
+                icon.monochrome ?: icon.foreground
+            } else appIcon
+            drawable.mutate().setColorFilter(android.graphics.PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN))
             val size = 128
             val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             drawable.setBounds(0, 0, size, size)
@@ -162,10 +163,9 @@ class AndroidCatalog(private val context: Context) {
     }
 
     /**
-     * Legacy launcher icons often bake their coloured tile into one opaque bitmap. Remove
-     * background pixels connected to the outer edge (using the corner colours as references),
-     * then turn the isolated foreground artwork white. This keeps the logo instead of producing
-     * a white square.
+     * Legacy icons may contain a full-colour tile baked into an opaque bitmap.
+     * Flood-fill from the outer edge using local colour continuity rather than
+     * comparing every pixel to the four corner colours. This also handles gradients.
      */
     private fun removeLegacyIconBackground(bitmap: Bitmap) {
         val width = bitmap.width
@@ -173,63 +173,43 @@ class AndroidCatalog(private val context: Context) {
         val pixels = IntArray(width * height)
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
 
-        val corners = listOf(
-            pixels[0],
-            pixels[width - 1],
-            pixels[(height - 1) * width],
-            pixels[height * width - 1]
-        ).filter { Color.alpha(it) > 127 }
-        if (corners.isEmpty()) {
-            for (i in pixels.indices) {
-                val alpha = Color.alpha(pixels[i])
-                pixels[i] = Color.argb(alpha, 255, 255, 255)
-            }
-            bitmap.setPixels(pixels, 0, width, 0, 0, width, height)
-            return
-        }
-
-        fun isBackground(color: Int): Boolean {
-            if (Color.alpha(color) < 16) return true
-            val r = Color.red(color)
-            val g = Color.green(color)
-            val b = Color.blue(color)
-            return corners.any { corner ->
-                val dr = r - Color.red(corner)
-                val dg = g - Color.green(corner)
-                val db = b - Color.blue(corner)
-                dr * dr + dg * dg + db * db <= 72 * 72
-            }
-        }
-
         val background = BooleanArray(pixels.size)
         val queue = IntArray(pixels.size)
         var head = 0
         var tail = 0
 
-        fun addIfBackground(index: Int) {
-            if (!background[index] && isBackground(pixels[index])) {
+        fun similar(a: Int, b: Int): Boolean {
+            if (Color.alpha(a) < 16 || Color.alpha(b) < 16) return true
+            val dr = Color.red(a) - Color.red(b)
+            val dg = Color.green(a) - Color.green(b)
+            val db = Color.blue(a) - Color.blue(b)
+            return dr * dr + dg * dg + db * db <= 38 * 38
+        }
+
+        fun add(index: Int, from: Int? = null) {
+            if (!background[index] && (from == null || similar(pixels[index], pixels[from]))) {
                 background[index] = true
                 queue[tail++] = index
             }
         }
 
         for (x in 0 until width) {
-            addIfBackground(x)
-            addIfBackground((height - 1) * width + x)
+            add(x)
+            add((height - 1) * width + x)
         }
         for (y in 0 until height) {
-            addIfBackground(y * width)
-            addIfBackground(y * width + width - 1)
+            add(y * width)
+            add(y * width + width - 1)
         }
 
         while (head < tail) {
             val index = queue[head++]
             val x = index % width
             val y = index / width
-            if (x > 0) addIfBackground(index - 1)
-            if (x + 1 < width) addIfBackground(index + 1)
-            if (y > 0) addIfBackground(index - width)
-            if (y + 1 < height) addIfBackground(index + width)
+            if (x > 0) add(index - 1, index)
+            if (x + 1 < width) add(index + 1, index)
+            if (y > 0) add(index - width, index)
+            if (y + 1 < height) add(index + width, index)
         }
 
         for (i in pixels.indices) {
@@ -244,7 +224,7 @@ class AndroidCatalog(private val context: Context) {
         private const val NAME_PREFIX = "inputName."
         const val BUTTONS = "buttons"
         private const val ICON_CACHE_VERSION_KEY = "iconCacheVersion"
-        private const val ICON_CACHE_VERSION = 3
+        private const val ICON_CACHE_VERSION = 4
         private const val PROJECTIVY = "com.spocky.projengmenu"
         /** HOME handlers that are not user launchers (setup fallbacks, factory tools). */
         private val NOT_LAUNCHERS = setOf("com.android.tv.settings", "com.android.settings", "com.duokan.factorytest", "com.google.android.tungsten.setupwraith")
